@@ -480,3 +480,20 @@ document.addEventListener('DOMContentLoaded', () => {
   // Load data
   loadClients()
 })
+
+// ─── AUTH GUARD ───────────────────────────────────────────────────────────────
+async function checkAuth() {
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) window.location.href = './login.html'
+}
+
+async function logout() {
+  await supabase.auth.signOut()
+  window.location.href = './login.html'
+}
+
+// Auto-check on load
+checkAuth()
+
+// Expose logout globally
+window.logout = logout
