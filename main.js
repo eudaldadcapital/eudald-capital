@@ -1,8 +1,8 @@
-import { supabase } from './lib/supabase.js'
+import { supabase } from './supabase.js'
 import {
   calcFixedCuota, calcFlexibleCuota, getPlanColor, getPlanBadgeClass,
   monthsSince, formatDate, fmtEur, FIXED_PLAN_RATES, FLEXIBLE_RATES
-} from './lib/plans.js'
+} from './plans.js'
 
 // ─── STATE ────────────────────────────────────────────────────────────────────
 let clients = []
