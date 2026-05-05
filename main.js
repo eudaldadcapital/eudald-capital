@@ -10,6 +10,31 @@ let selectedId = null
 let editingId = null
 let flexClientId = null
 
+// ─── AUTH ─────────────────────────────────────────────────────────────────────
+async function initAuth() {
+  const { data: { session } } = await supabase.auth.getSession()
+  if (session) {
+    showDashboard()
+  } else {
+    showLoginScreen()
+  }
+}
+
+function showLoginScreen() {
+  document.getElementById('login-screen').classList.remove('hidden')
+}
+
+function showDashboard() {
+  document.getElementById('login-screen').classList.add('hidden')
+  loadClients()
+}
+
+async function logout() {
+  await supabase.auth.signOut()
+  document.getElementById('login-screen').classList.remove('hidden')
+}
+window.logout = logout
+
 // ─── SUPABASE CRUD ────────────────────────────────────────────────────────────
 async function loadClients() {
   const { data, error } = await supabase
@@ -208,7 +233,6 @@ function renderClientDetail() {
         <div class="months-label">meses contigo</div>
       </div>
     </div>
-
     <div class="metric-grid" style="grid-template-columns:repeat(3,1fr)">
       <div class="metric-card">
         <div class="m-label">Capital gestionado</div>
@@ -225,7 +249,6 @@ function renderClientDetail() {
         <div class="m-sub">${months} meses × ${c.plan === 'Flexible' ? 'variable' : fmtEur(c.cuota || 0)}</div>
       </div>
     </div>
-
     <div class="sec-title">Ficha del cliente</div>
     <div class="t-wrap">
       <table>
@@ -242,7 +265,6 @@ function renderClientDetail() {
         </tbody>
       </table>
     </div>
-
     <div class="detail-actions">
       <button class="btn-ghost" id="btn-edit-capital">Editar capital</button>
       <button class="btn-ghost" id="btn-toggle-pay">Cambiar estado pago</button>
@@ -315,16 +337,13 @@ function updateCuotaHint() {
   const cap = parseFloat(document.getElementById('f-capital').value) || 0
   const hint = document.getElementById('cuota-hint')
   const cuotaInput = document.getElementById('f-cuota')
-
   if (plan === 'Flexible') {
     if (cap < 1500) {
       hint.textContent = '⚠ El plan Flexible requiere mínimo €1.500 de capital.'
       hint.style.color = '#c0392b'
     } else {
       const tier = FLEXIBLE_RATES.find(r => cap >= r.min && cap < r.max)
-      hint.textContent = tier
-        ? `Comisión: ${tier.commission * 100}% sobre beneficios${tier.maintenance ? ` + €${tier.maintenance}/mes mantenimiento` : ''}. Si el mes es negativo → €0.`
-        : ''
+      hint.textContent = tier ? `Comisión: ${tier.commission * 100}% sobre beneficios${tier.maintenance ? ` + €${tier.maintenance}/mes mantenimiento` : ''}. Mes negativo → €0.` : ''
       hint.style.color = '#5a90e0'
     }
     cuotaInput.placeholder = 'Se calcula según rentabilidad'
@@ -347,19 +366,15 @@ async function saveClient() {
   const start_date = document.getElementById('f-date').value + '-01'
   const pay_status = document.getElementById('f-status').value
   const notes = document.getElementById('f-notes').value.trim()
-
   if (!name || !capital || !start_date) { alert('Rellena nombre, capital y fecha.'); return }
   if (plan === 'Flexible' && capital < 1500) { alert('El plan Flexible requiere mínimo €1.500 de capital.'); return }
-
   const payload = { name, plan, capital, cuota, start_date, pay_status, notes }
-
   if (editingId) {
     await updateClient(editingId, payload)
   } else {
     const newClient = await insertClient(payload)
     if (newClient) selectedId = newClient.id
   }
-
   closeModal()
   await loadClients()
   if (!editingId) showPage('clients')
@@ -439,22 +454,40 @@ function updateClock() {
 }
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  // Login
+  document.getElementById('btn-login')?.addEventListener('click', async () => {
+    const email = document.getElementById('login-email').value.trim()
+    const password = document.getElementById('login-password').value
+    const errorEl = document.getElementById('login-error')
+    if (!email || !password) { errorEl.textContent = 'Introduce email y contraseña.'; errorEl.classList.add('show'); return }
+    document.getElementById('btn-login').textContent = 'Entrando...'
+    document.getElementById('btn-login').disabled = true
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    if (error) {
+      errorEl.textContent = 'Email o contraseña incorrectos.'
+      errorEl.classList.add('show')
+      document.getElementById('btn-login').textContent = 'Entrar'
+      document.getElementById('btn-login').disabled = false
+    } else {
+      showDashboard()
+    }
+  })
+  document.getElementById('login-password')?.addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('btn-login').click()
+  })
+
   // Nav
   document.querySelectorAll('.nav-btn').forEach(btn => {
     btn.addEventListener('click', () => showPage(btn.dataset.page))
   })
-  // Add client buttons
   document.getElementById('btn-add-overview')?.addEventListener('click', openAddClient)
-  // Modal close
   document.getElementById('modal-close')?.addEventListener('click', closeModal)
   document.getElementById('btn-cancel')?.addEventListener('click', closeModal)
   document.getElementById('btn-save')?.addEventListener('click', saveClient)
   document.getElementById('modal-overlay')?.addEventListener('click', e => { if (e.target === e.currentTarget) closeModal() })
-  // Capital modal
   document.getElementById('capital-close')?.addEventListener('click', () => document.getElementById('modal-capital').classList.remove('open'))
   document.getElementById('cap-cancel')?.addEventListener('click', () => document.getElementById('modal-capital').classList.remove('open'))
-  // Flexible modal
   document.getElementById('flex-close')?.addEventListener('click', () => document.getElementById('modal-flexible').classList.remove('open'))
   document.getElementById('flex-cancel')?.addEventListener('click', () => document.getElementById('modal-flexible').classList.remove('open'))
   document.getElementById('flex-save')?.addEventListener('click', async () => {
@@ -462,38 +495,17 @@ document.addEventListener('DOMContentLoaded', () => {
     if (isNaN(ret)) return
     const c = clients.find(cl => cl.id === flexClientId)
     const cuota = ret <= 0 ? 0 : calcFlexibleCuota(Number(c.capital), ret)
-    const status = ret <= 0 ? 'OK' : 'OK'
-    await updateClient(flexClientId, { cuota, pay_status: status })
+    await updateClient(flexClientId, { cuota, pay_status: 'OK' })
     document.getElementById('modal-flexible').classList.remove('open')
     await loadClients()
   })
-  // Plan/capital change → update hint
   document.getElementById('f-plan')?.addEventListener('change', updateCuotaHint)
   document.getElementById('f-capital')?.addEventListener('input', updateCuotaHint)
-  // Sidebar search
   document.getElementById('search-input')?.addEventListener('input', e => renderSidebar(e.target.value))
 
-  // Clock
   updateClock()
   setInterval(updateClock, 1000)
 
-  // Load data
-  loadClients()
+  // Check auth
+  await initAuth()
 })
-
-// ─── AUTH GUARD ───────────────────────────────────────────────────────────────
-async function checkAuth() {
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session) window.location.href = './login.html'
-}
-
-async function logout() {
-  await supabase.auth.signOut()
-  window.location.href = './login.html'
-}
-
-// Auto-check on load
-checkAuth()
-
-// Expose logout globally
-window.logout = logout

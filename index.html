@@ -7,8 +7,58 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+  <style>
+    /* LOGIN SCREEN */
+    #login-screen {
+      position: fixed; inset: 0; background: #0c0c0c;
+      display: flex; align-items: center; justify-content: center;
+      z-index: 9999;
+    }
+    #login-screen.hidden { display: none; }
+    .login-wrap { width: 100%; max-width: 380px; padding: 24px; }
+    .login-logo-area { display: flex; flex-direction: column; align-items: center; margin-bottom: 40px; }
+    .login-logo-ec {
+      width: 52px; height: 52px; background: #c9a84c; border-radius: 4px;
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 700; color: #080808;
+      margin-bottom: 14px;
+    }
+    .login-logo-name { font-family: 'Playfair Display', serif; font-size: 22px; color: #e8e0d0; letter-spacing: 1px; }
+    .login-logo-sub { font-size: 10px; color: #3a3a3a; letter-spacing: 3px; text-transform: uppercase; margin-top: 4px; }
+    .login-card { background: #0f0f0f; border: 1px solid #1a1a1a; border-radius: 4px; padding: 28px; }
+    .login-card-title { font-size: 13px; color: #5a5a5a; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 20px; }
+    .login-error {
+      background: #200a0a; border: 1px solid #3a1010; color: #c0392b;
+      padding: 10px 12px; font-size: 11px; border-radius: 2px; margin-top: 12px; display: none;
+    }
+    .login-error.show { display: block; }
+  </style>
 </head>
 <body>
+
+  <!-- LOGIN SCREEN -->
+  <div id="login-screen">
+    <div class="login-wrap">
+      <div class="login-logo-area">
+        <div class="login-logo-ec">EC</div>
+        <div class="login-logo-name">Eudald Capital</div>
+        <div class="login-logo-sub">Advisory Dashboard</div>
+      </div>
+      <div class="login-card">
+        <div class="login-card-title">Acceso privado</div>
+        <div class="form-row">
+          <label class="form-label">Email</label>
+          <input class="form-input" id="login-email" type="email" placeholder="tu@email.com" autocomplete="email">
+        </div>
+        <div class="form-row">
+          <label class="form-label">Contraseña</label>
+          <input class="form-input" id="login-password" type="password" placeholder="••••••••">
+        </div>
+        <button class="btn-gold" id="btn-login" style="width:100%;margin-top:6px;">Entrar</button>
+        <div class="login-error" id="login-error">Email o contraseña incorrectos.</div>
+      </div>
+    </div>
+  </div>
 
   <!-- TOPBAR -->
   <div class="topbar">
@@ -22,8 +72,8 @@
     <div class="topbar-right">
       <span id="status-indicator"><span class="status-dot"></span>Conectado</span>
       <span class="clock" id="clock"></span>
-      <span id="today-date" style="color:#3a3a3a;"></span>
-      <button onclick="logout()" style="background:transparent;border:1px solid #2a2a2a;color:#5a5a5a;padding:4px 12px;font-size:10px;letter-spacing:1px;text-transform:uppercase;border-radius:2px;cursor:pointer;font-family:DM Sans,sans-serif;">Salir</button>
+      <span id="today-date"></span>
+      <button onclick="window.logout()" style="background:transparent;border:1px solid #2a2a2a;color:#5a5a5a;padding:4px 12px;font-size:10px;letter-spacing:1px;text-transform:uppercase;border-radius:2px;cursor:pointer;font-family:'DM Sans',sans-serif;">Salir</button>
     </div>
   </div>
 
@@ -107,7 +157,6 @@
     <div class="modal">
       <button class="modal-close" id="modal-close">✕</button>
       <div class="modal-title" id="modal-title">Nuevo cliente</div>
-
       <div class="form-row">
         <label class="form-label">Nombre completo</label>
         <input class="form-input" id="f-name" placeholder="Ej: María García López">
@@ -132,7 +181,6 @@
         </div>
       </div>
       <div id="cuota-hint" class="cuota-hint"></div>
-
       <div class="form-row">
         <label class="form-label">Fecha de inicio</label>
         <input class="form-input" id="f-date" type="month">
@@ -149,7 +197,6 @@
         <label class="form-label">Notas (opcional)</label>
         <textarea class="form-input" id="f-notes" rows="2" placeholder="Observaciones sobre el cliente..."></textarea>
       </div>
-
       <div class="modal-actions">
         <button class="btn-ghost" id="btn-cancel">Cancelar</button>
         <button class="btn-gold" id="btn-save">Guardar cliente</button>
