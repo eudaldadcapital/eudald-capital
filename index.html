@@ -293,6 +293,39 @@
     </div>
   </div>
 
+
+  <!-- MODAL: REGISTER RETURN -->
+  <div class="modal-overlay" id="modal-return">
+    <div class="modal" style="max-width:420px;">
+      <button class="modal-close" id="return-close">✕</button>
+      <div class="modal-title">Registrar rentabilidad</div>
+      <div style="font-size:11px;color:#5a5a5a;margin-bottom:16px;">Cliente: <span id="ret-client-name" style="color:#c9a84c;"></span></div>
+      <div class="form-row-2">
+        <div>
+          <label class="form-label">Mes</label>
+          <input class="form-input" id="ret-month" type="month">
+        </div>
+        <div>
+          <label class="form-label">Rentabilidad (%)</label>
+          <input class="form-input" id="ret-pct" type="number" step="0.01" placeholder="Ej: 3.5">
+        </div>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Beneficio en € (opcional)</label>
+        <input class="form-input" id="ret-eur" type="number" step="0.01" placeholder="Se calcula automáticamente">
+      </div>
+      <div id="ret-hint" class="cuota-hint"></div>
+      <div class="form-row">
+        <label class="form-label">Nota (opcional)</label>
+        <input class="form-input" id="ret-notes" placeholder="Ej: Buen mes en tecnología">
+      </div>
+      <div class="modal-actions">
+        <button class="btn-ghost" id="ret-cancel">Cancelar</button>
+        <button class="btn-gold" id="ret-save">Guardar rentabilidad</button>
+      </div>
+    </div>
+  </div>
+
   <script type="module" src="main.js"></script>
 </body>
 </html>

@@ -7,6 +7,7 @@ import {
 // ─── STATE ────────────────────────────────────────────────────────────────────
 let clients = []
 let payments = []
+let returns = []
 let selectedId = null
 let editingId = null
 let flexClientId = null
@@ -24,12 +25,14 @@ window.logout = logout
 
 // ─── SUPABASE CRUD ────────────────────────────────────────────────────────────
 async function loadAll() {
-  const [{ data: c }, { data: p }] = await Promise.all([
+  const [{ data: c }, { data: p }, { data: r }] = await Promise.all([
     supabase.from('clients').select('*').order('created_at', { ascending: true }),
-    supabase.from('payments').select('*').order('created_at', { ascending: false })
+    supabase.from('payments').select('*').order('created_at', { ascending: false }),
+    supabase.from('returns').select('*').order('created_at', { ascending: false })
   ])
   clients = c || []
   payments = p || []
+  returns = r || []
   if (clients.length > 0 && !selectedId) selectedId = clients[0].id
   renderAll()
 }
@@ -54,6 +57,14 @@ async function insertPayment(p) {
 async function deletePayment(id) {
   const { error } = await supabase.from('payments').delete().eq('id', id)
   if (error) alert('Error al eliminar pago: ' + error.message)
+}
+async function insertReturn(r) {
+  const { error } = await supabase.from('returns').insert([r])
+  if (error) alert('Error al registrar rentabilidad: ' + error.message)
+}
+async function deleteReturn(id) {
+  const { error } = await supabase.from('returns').delete().eq('id', id)
+  if (error) alert('Error al eliminar rentabilidad: ' + error.message)
 }
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
@@ -321,6 +332,12 @@ function renderClientDetail() {
       </div>
     </div>
 
+    <div class="sec-title" style="margin-top:16px">
+      Rentabilidad mensual
+      <button class="add-btn" id="btn-add-return">+ Registrar rentabilidad</button>
+    </div>
+    <div id="client-returns-view">${renderClientReturns(c)}</div>
+
     <div class="detail-actions" style="margin-top:8px">
       <button class="btn-ghost" id="btn-edit-capital">Editar capital</button>
       <button class="btn-ghost" id="btn-toggle-pay">Cambiar estado</button>
@@ -336,6 +353,14 @@ function renderClientDetail() {
   document.getElementById('btn-edit-client')?.addEventListener('click', () => openEditClient(c))
   document.getElementById('btn-delete-client')?.addEventListener('click', () => confirmDelete(c))
   document.getElementById('btn-export-client')?.addEventListener('click', () => exportClientPDF(c.id))
+  document.getElementById('btn-add-return')?.addEventListener('click', () => openAddReturn(c))
+  document.querySelectorAll('.del-ret-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('¿Eliminar esta rentabilidad?')) return
+      await deleteReturn(btn.dataset.id)
+      await loadAll()
+    })
+  })
   document.getElementById('btn-add-payment')?.addEventListener('click', () => openAddPayment(c))
   document.querySelectorAll('.del-pay-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
@@ -556,6 +581,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('pay-cancel')?.addEventListener('click', () => document.getElementById('modal-payment').classList.remove('open'))
   document.getElementById('f-plan')?.addEventListener('change', updateCuotaHint)
   document.getElementById('f-capital')?.addEventListener('input', updateCuotaHint)
+  document.getElementById('return-close')?.addEventListener('click', () => document.getElementById('modal-return').classList.remove('open'))
+  document.getElementById('ret-cancel')?.addEventListener('click', () => document.getElementById('modal-return').classList.remove('open'))
   document.getElementById('search-input')?.addEventListener('input', e => renderSidebar(e.target.value))
   updateClock()
   setInterval(updateClock, 1000)
@@ -933,4 +960,101 @@ function renderAnalytics() {
       }
     })
   }
+}
+
+// ─── RETURNS ──────────────────────────────────────────────────────────────────
+function openAddReturn(c) {
+  document.getElementById('ret-client-name').textContent = c.name
+  document.getElementById('ret-month').value = currentMonth()
+  document.getElementById('ret-pct').value = ''
+  document.getElementById('ret-eur').value = ''
+  document.getElementById('ret-notes').value = ''
+  document.getElementById('ret-hint').textContent = ''
+  document.getElementById('modal-return').classList.add('open')
+
+  // Auto-calc EUR from pct
+  const calcHint = () => {
+    const pct = parseFloat(document.getElementById('ret-pct').value)
+    const hint = document.getElementById('ret-hint')
+    const eurInput = document.getElementById('ret-eur')
+    if (!isNaN(pct) && Number(c.capital) > 0) {
+      const eur = ((pct / 100) * Number(c.capital)).toFixed(2)
+      eurInput.value = eur
+      if (pct < 0) {
+        hint.textContent = `Mes negativo — pérdida de ${fmtEur(Math.abs(eur))}.${c.plan === 'Flexible' ? ' No se cobra cuota.' : ''}`
+        hint.style.color = '#c0392b'
+      } else if (pct === 0) {
+        hint.textContent = 'Sin rentabilidad este mes.'
+        hint.style.color = '#5a5a5a'
+      } else {
+        const msg = c.plan === 'Flexible'
+          ? ` → Cuota a cobrar: €${calcFlexibleCuota(Number(c.capital), parseFloat(eur))}`
+          : ''
+        hint.textContent = `Beneficio estimado: ${fmtEur(eur)}${msg}`
+        hint.style.color = '#c9a84c'
+      }
+    } else {
+      hint.textContent = ''
+    }
+  }
+
+  document.getElementById('ret-pct').oninput = calcHint
+
+  document.getElementById('ret-save').onclick = async () => {
+    const month = document.getElementById('ret-month').value
+    const pct = parseFloat(document.getElementById('ret-pct').value)
+    const eur = parseFloat(document.getElementById('ret-eur').value) || 0
+    const notes = document.getElementById('ret-notes').value.trim()
+    if (!month || isNaN(pct)) { alert('Rellena el mes y la rentabilidad.'); return }
+    await insertReturn({ client_id: c.id, month, return_pct: pct, return_eur: eur, notes })
+    document.getElementById('modal-return').classList.remove('open')
+    await loadAll()
+  }
+}
+
+function renderClientReturns(c) {
+  const clientReturns = returns
+    .filter(r => r.client_id === c.id)
+    .sort((a, b) => b.month.localeCompare(a.month))
+
+  if (!clientReturns.length) return '<div style="padding:16px;color:#3a3a3a;font-size:11px;text-align:center">Sin rentabilidades registradas</div>'
+
+  const avgReturn = clientReturns.reduce((s, r) => s + Number(r.return_pct), 0) / clientReturns.length
+  const totalEur = clientReturns.filter(r => r.return_eur > 0).reduce((s, r) => s + Number(r.return_eur), 0)
+  const positiveMonths = clientReturns.filter(r => Number(r.return_pct) > 0).length
+
+  return `
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;">
+      <div class="metric-card" style="padding:10px;">
+        <div class="m-label">Rentabilidad media</div>
+        <div style="font-family:'Playfair Display',serif;font-size:18px;color:${avgReturn >= 0 ? '#4caf74' : '#c0392b'};margin-top:4px">${avgReturn.toFixed(2)}%</div>
+      </div>
+      <div class="metric-card" style="padding:10px;">
+        <div class="m-label">Beneficio total</div>
+        <div style="font-family:'Playfair Display',serif;font-size:18px;color:#c9a84c;margin-top:4px">${fmtEur(totalEur)}</div>
+      </div>
+      <div class="metric-card" style="padding:10px;">
+        <div class="m-label">Meses positivos</div>
+        <div style="font-family:'Playfair Display',serif;font-size:18px;margin-top:4px">${positiveMonths} / ${clientReturns.length}</div>
+      </div>
+    </div>
+    <div class="t-wrap">
+      <table>
+        <thead><tr><th>Mes</th><th>Rentabilidad</th><th>Beneficio €</th><th>Nota</th><th></th></tr></thead>
+        <tbody>
+          ${clientReturns.map(r => `
+            <tr>
+              <td style="color:#e8e0d0">${formatMonth(r.month)}</td>
+              <td style="color:${Number(r.return_pct) >= 0 ? '#4caf74' : '#c0392b'};font-weight:600">
+                ${Number(r.return_pct) >= 0 ? '+' : ''}${Number(r.return_pct).toFixed(2)}%
+              </td>
+              <td style="color:${Number(r.return_eur) >= 0 ? '#c9a84c' : '#c0392b'}">
+                ${Number(r.return_eur) >= 0 ? '+' : ''}${fmtEur(r.return_eur)}
+              </td>
+              <td style="color:#5a5a5a;font-size:11px">${r.notes || '—'}</td>
+              <td><button class="del-ret-btn" data-id="${r.id}" style="background:none;border:none;color:#3a3a3a;cursor:pointer;font-size:12px">✕</button></td>
+            </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`
 }
