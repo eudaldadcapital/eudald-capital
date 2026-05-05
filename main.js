@@ -326,6 +326,7 @@ function renderClientDetail() {
       <button class="btn-ghost" id="btn-toggle-pay">Cambiar estado</button>
       ${c.plan === 'Flexible' ? '<button class="btn-ghost" id="btn-flex-cuota">Cuota flexible</button>' : ''}
       <button class="btn-ghost" id="btn-edit-client">Editar</button>
+      <button class="btn-ghost" id="btn-export-client">↓ Exportar PDF</button>
       <button class="btn-danger" id="btn-delete-client">Eliminar cliente</button>
     </div>`
 
@@ -334,6 +335,7 @@ function renderClientDetail() {
   document.getElementById('btn-flex-cuota')?.addEventListener('click', () => openFlexModal(c.id))
   document.getElementById('btn-edit-client')?.addEventListener('click', () => openEditClient(c))
   document.getElementById('btn-delete-client')?.addEventListener('click', () => confirmDelete(c))
+  document.getElementById('btn-export-client')?.addEventListener('click', () => exportClientPDF(c.id))
   document.getElementById('btn-add-payment')?.addEventListener('click', () => openAddPayment(c))
   document.querySelectorAll('.del-pay-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
@@ -531,6 +533,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('login-password')?.addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('btn-login').click() })
   document.querySelectorAll('.nav-btn').forEach(btn => btn.addEventListener('click', () => showPage(btn.dataset.page)))
   document.getElementById('btn-add-overview')?.addEventListener('click', openAddClient)
+  document.getElementById('btn-export-overview')?.addEventListener('click', exportOverviewPDF)
   document.getElementById('modal-close')?.addEventListener('click', closeModal)
   document.getElementById('btn-cancel')?.addEventListener('click', closeModal)
   document.getElementById('btn-save')?.addEventListener('click', saveClient)
@@ -557,3 +560,227 @@ document.addEventListener('DOMContentLoaded', async () => {
   setInterval(updateClock, 1000)
   await initAuth()
 })
+
+// ─── PDF EXPORT ───────────────────────────────────────────────────────────────
+function exportOverviewPDF() {
+  const { jsPDF } = window.jspdf
+  const doc = new jsPDF()
+  const today = new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' })
+
+  // Header
+  doc.setFillColor(201, 168, 76)
+  doc.rect(0, 0, 220, 18, 'F')
+  doc.setTextColor(8, 8, 8)
+  doc.setFontSize(14)
+  doc.setFont('helvetica', 'bold')
+  doc.text('EUDALD CAPITAL', 14, 12)
+  doc.setFontSize(9)
+  doc.setFont('helvetica', 'normal')
+  doc.text('Advisory Dashboard', 14, 17)
+
+  // Date
+  doc.setTextColor(90, 90, 90)
+  doc.setFontSize(9)
+  doc.text(`Generado el ${today}`, 14, 26)
+
+  // Summary metrics
+  doc.setTextColor(20, 20, 20)
+  doc.setFontSize(11)
+  doc.setFont('helvetica', 'bold')
+  doc.text('Resumen ejecutivo', 14, 36)
+
+  const mrr = totalMRR()
+  const aum = totalAUM()
+  const pending = clients.filter(c => c.pay_status === 'PENDIENTE').length
+
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(10)
+  doc.setTextColor(90, 90, 90)
+  doc.text(`Capital total gestionado:`, 14, 44)
+  doc.setTextColor(201, 168, 76)
+  doc.text(`${fmtEur(aum)}`, 80, 44)
+
+  doc.setTextColor(90, 90, 90)
+  doc.text(`Clientes activos:`, 14, 51)
+  doc.setTextColor(20, 20, 20)
+  doc.text(`${clients.length}`, 80, 51)
+
+  doc.setTextColor(90, 90, 90)
+  doc.text(`Ingresos mensuales:`, 14, 58)
+  doc.setTextColor(76, 175, 116)
+  doc.text(`${fmtEur(mrr)}`, 80, 58)
+
+  doc.setTextColor(90, 90, 90)
+  doc.text(`Pagos pendientes:`, 14, 65)
+  doc.setTextColor(pending > 0 ? 192 : 76, pending > 0 ? 57 : 175, pending > 0 ? 43 : 116)
+  doc.text(`${pending}`, 80, 65)
+
+  doc.setTextColor(90, 90, 90)
+  doc.text(`Proyección anual:`, 14, 72)
+  doc.setTextColor(201, 168, 76)
+  doc.text(`${fmtEur(mrr * 12)}`, 80, 72)
+
+  // Clients table
+  doc.setTextColor(20, 20, 20)
+  doc.setFontSize(11)
+  doc.setFont('helvetica', 'bold')
+  doc.text('Listado de clientes', 14, 84)
+
+  doc.autoTable({
+    startY: 88,
+    head: [['Cliente', 'Plan', 'Capital', 'Cuota/mes', 'Meses', 'Inicio', 'Estado']],
+    body: clients.map(c => [
+      c.name,
+      c.plan,
+      fmtEur(c.capital),
+      c.plan === 'Flexible' ? 'Variable' : fmtEur(c.cuota || 0),
+      monthsSince(c.start_date),
+      formatDate(c.start_date),
+      c.pay_status
+    ]),
+    styles: { fontSize: 9, cellPadding: 3, textColor: [20, 20, 20] },
+    headStyles: { fillColor: [15, 15, 15], textColor: [201, 168, 76], fontStyle: 'bold', fontSize: 8 },
+    alternateRowStyles: { fillColor: [245, 245, 245] },
+    columnStyles: {
+      0: { fontStyle: 'bold' },
+      2: { textColor: [201, 168, 76] },
+      6: { textColor: [76, 175, 116] }
+    }
+  })
+
+  // Payment history
+  if (payments.length > 0) {
+    const finalY = doc.lastAutoTable.finalY + 10
+    doc.setFontSize(11)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(20, 20, 20)
+    doc.text('Historial de pagos', 14, finalY)
+
+    const totalHistorico = payments.filter(p => p.status === 'OK').reduce((s, p) => s + Number(p.amount), 0)
+
+    doc.autoTable({
+      startY: finalY + 4,
+      head: [['Mes', 'Cliente', 'Plan', 'Importe', 'Estado', 'Nota']],
+      body: payments.map(p => {
+        const c = clients.find(cl => cl.id === p.client_id)
+        return [
+          formatMonth(p.month),
+          c ? c.name : '—',
+          c ? c.plan : '—',
+          fmtEur(p.amount),
+          p.status,
+          p.notes || '—'
+        ]
+      }),
+      styles: { fontSize: 9, cellPadding: 3 },
+      headStyles: { fillColor: [15, 15, 15], textColor: [201, 168, 76], fontStyle: 'bold', fontSize: 8 },
+      alternateRowStyles: { fillColor: [245, 245, 245] },
+      foot: [['', '', 'TOTAL COBRADO', fmtEur(totalHistorico), '', '']],
+      footStyles: { fillColor: [201, 168, 76], textColor: [8, 8, 8], fontStyle: 'bold' }
+    })
+  }
+
+  // Footer
+  const pageCount = doc.internal.getNumberOfPages()
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i)
+    doc.setFontSize(8)
+    doc.setTextColor(150, 150, 150)
+    doc.text(`Eudald Capital — Documento confidencial — Página ${i} de ${pageCount}`, 14, doc.internal.pageSize.height - 8)
+  }
+
+  doc.save(`EudaldCapital_Resumen_${today.replace(/ /g, '_')}.pdf`)
+}
+
+function exportClientPDF(clientId) {
+  const { jsPDF } = window.jspdf
+  const c = clients.find(cl => cl.id === clientId)
+  if (!c) return
+
+  const doc = new jsPDF()
+  const today = new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' })
+  const clientPayments = payments.filter(p => p.client_id === c.id).sort((a, b) => b.month.localeCompare(a.month))
+  const totalPaid = clientPayments.filter(p => p.status === 'OK').reduce((s, p) => s + Number(p.amount), 0)
+  const months = monthsSince(c.start_date)
+
+  // Header
+  doc.setFillColor(201, 168, 76)
+  doc.rect(0, 0, 220, 18, 'F')
+  doc.setTextColor(8, 8, 8)
+  doc.setFontSize(14)
+  doc.setFont('helvetica', 'bold')
+  doc.text('EUDALD CAPITAL', 14, 12)
+  doc.setFontSize(9)
+  doc.setFont('helvetica', 'normal')
+  doc.text('Ficha de cliente', 14, 17)
+
+  doc.setTextColor(90, 90, 90)
+  doc.setFontSize(9)
+  doc.text(`Generado el ${today}`, 14, 26)
+
+  // Client name
+  doc.setTextColor(20, 20, 20)
+  doc.setFontSize(16)
+  doc.setFont('helvetica', 'bold')
+  doc.text(c.name, 14, 38)
+  doc.setFontSize(10)
+  doc.setFont('helvetica', 'normal')
+  doc.setTextColor(90, 90, 90)
+  doc.text(`Plan ${c.plan} · Cliente desde ${formatDate(c.start_date)}`, 14, 45)
+
+  // Metrics
+  const metrics = [
+    ['Capital gestionado', fmtEur(c.capital)],
+    ['Cuota mensual', c.plan === 'Flexible' ? 'Variable' : fmtEur(c.cuota || 0)],
+    ['Meses activo', `${months} meses`],
+    ['Total cobrado', fmtEur(totalPaid)],
+    ['Estado del pago', c.pay_status],
+    ['Pagos registrados', `${clientPayments.length}`]
+  ]
+
+  doc.autoTable({
+    startY: 52,
+    body: metrics,
+    styles: { fontSize: 10, cellPadding: 4 },
+    columnStyles: {
+      0: { textColor: [90, 90, 90], cellWidth: 70 },
+      1: { textColor: [20, 20, 20], fontStyle: 'bold' }
+    },
+    alternateRowStyles: { fillColor: [248, 248, 248] }
+  })
+
+  // Payment history
+  if (clientPayments.length > 0) {
+    const finalY = doc.lastAutoTable.finalY + 10
+    doc.setFontSize(11)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(20, 20, 20)
+    doc.text('Historial de pagos', 14, finalY)
+
+    doc.autoTable({
+      startY: finalY + 4,
+      head: [['Mes', 'Importe', 'Estado', 'Nota']],
+      body: clientPayments.map(p => [
+        formatMonth(p.month),
+        fmtEur(p.amount),
+        p.status,
+        p.notes || '—'
+      ]),
+      styles: { fontSize: 10, cellPadding: 3 },
+      headStyles: { fillColor: [15, 15, 15], textColor: [201, 168, 76], fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [245, 245, 245] },
+      foot: [['TOTAL', fmtEur(totalPaid), '', '']],
+      footStyles: { fillColor: [201, 168, 76], textColor: [8, 8, 8], fontStyle: 'bold' }
+    })
+  }
+
+  // Footer
+  doc.setFontSize(8)
+  doc.setTextColor(150, 150, 150)
+  doc.text(`Eudald Capital — Documento confidencial`, 14, doc.internal.pageSize.height - 8)
+
+  doc.save(`EudaldCapital_${c.name.replace(/ /g, '_')}_${today.replace(/ /g, '_')}.pdf`)
+}
+
+window.exportOverviewPDF = exportOverviewPDF
+window.exportClientPDF = exportClientPDF

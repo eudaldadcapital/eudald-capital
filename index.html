@@ -7,6 +7,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
   <style>
     /* LOGIN SCREEN */
     #login-screen {
@@ -110,6 +112,7 @@
         <div class="plan-grid" id="plan-grid"></div>
         <div class="sec-title">
           Todos los clientes
+          <button class="add-btn" id="btn-export-overview" style="margin-right:8px;">↓ Exportar PDF</button>
           <button class="add-btn" id="btn-add-overview">+ Añadir cliente</button>
         </div>
         <div class="t-wrap">
