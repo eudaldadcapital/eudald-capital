@@ -86,6 +86,7 @@
     <button class="nav-btn" data-page="clients">Clientes</button>
     <button class="nav-btn" data-page="payments">Pagos</button>
     <button class="nav-btn" data-page="analytics">Análisis</button>
+    <button class="nav-btn" data-page="calc">Calculadora</button>
   </nav>
 
   <!-- LAYOUT -->
@@ -162,6 +163,78 @@
             <div class="chart-card-title">Ranking de clientes por capital gestionado</div>
             <canvas id="chart-clients"></canvas>
           </div>
+        </div>
+      </div>
+
+
+      <!-- CALCULATOR PAGE -->
+      <div class="page" id="page-calc">
+        <div class="sec-title">Calculadora de comisiones</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:900px;">
+
+          <!-- Fixed plans -->
+          <div>
+            <div class="sec-title">Planes de cuota fija</div>
+            <div class="t-wrap" style="margin-bottom:16px;">
+              <div style="padding:14px;">
+                <div class="form-row">
+                  <label class="form-label">Capital invertido (€)</label>
+                  <input class="form-input" id="calc-capital" type="number" placeholder="Ej: 3000" oninput="calcFixed()">
+                </div>
+                <div id="calc-fixed-results" style="margin-top:4px;"></div>
+              </div>
+            </div>
+
+            <div class="sec-title">Tabla de tarifas</div>
+            <div class="t-wrap">
+              <table>
+                <thead><tr><th>Capital</th><th style="color:#4caf74">Conservador</th><th style="color:#c9a84c">Moderado</th><th style="color:#c0392b">Agresivo</th></tr></thead>
+                <tbody>
+                  <tr><td style="color:#5a5a5a">700 – 2.500€</td><td style="color:#4caf74">€4/mes</td><td style="color:#c9a84c">€6/mes</td><td style="color:#c0392b">€10/mes</td></tr>
+                  <tr><td style="color:#5a5a5a">2.500 – 3.500€</td><td style="color:#4caf74">€6/mes</td><td style="color:#c9a84c">€8/mes</td><td style="color:#c0392b">€13/mes</td></tr>
+                  <tr><td style="color:#5a5a5a">+3.500€</td><td style="color:#4caf74">€8/mes</td><td style="color:#c9a84c">€11/mes</td><td style="color:#c0392b">€16/mes</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Flexible plan -->
+          <div>
+            <div class="sec-title">Plan flexible</div>
+            <div class="t-wrap" style="margin-bottom:16px;">
+              <div style="padding:14px;">
+                <div class="form-row-2">
+                  <div>
+                    <label class="form-label">Capital invertido (€)</label>
+                    <input class="form-input" id="calc-flex-capital" type="number" placeholder="Ej: 4000" oninput="calcFlex()">
+                  </div>
+                  <div>
+                    <label class="form-label">Rentabilidad del mes (%)</label>
+                    <input class="form-input" id="calc-flex-pct" type="number" step="0.01" placeholder="Ej: 3.5" oninput="calcFlex()">
+                  </div>
+                </div>
+                <div class="form-row">
+                  <label class="form-label">O introduce el beneficio directo (€)</label>
+                  <input class="form-input" id="calc-flex-eur" type="number" step="0.01" placeholder="Ej: 140" oninput="calcFlexEur()">
+                </div>
+                <div id="calc-flex-result" style="margin-top:8px;"></div>
+              </div>
+            </div>
+
+            <div class="sec-title">Tabla de comisiones flexible</div>
+            <div class="t-wrap">
+              <table>
+                <thead><tr><th>Capital</th><th style="color:#5a90e0">Comisión</th><th style="color:#5a90e0">Mantenimiento</th></tr></thead>
+                <tbody>
+                  <tr><td style="color:#5a5a5a">1.500 – 3.000€</td><td style="color:#5a90e0">25% beneficios</td><td style="color:#5a5a5a">—</td></tr>
+                  <tr><td style="color:#5a5a5a">3.000 – 5.000€</td><td style="color:#5a90e0">20% beneficios</td><td style="color:#5a5a5a">—</td></tr>
+                  <tr><td style="color:#5a5a5a">+5.000€</td><td style="color:#5a90e0">15% beneficios</td><td style="color:#5a5a5a">€5/mes</td></tr>
+                  <tr><td style="color:#c0392b;font-size:11px" colspan="3">Mes negativo → €0, no se cobra nada</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
         </div>
       </div>
 

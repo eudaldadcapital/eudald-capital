@@ -533,6 +533,7 @@ function showPage(name) {
   if (name === 'clients') renderClientDetail()
   if (name === 'payments') renderPayments()
   if (name === 'analytics') renderAnalytics()
+  if (name === 'calc') { document.getElementById('calc-fixed-results').innerHTML = ''; document.getElementById('calc-flex-result').innerHTML = '' }
 }
 function renderAll() { renderSidebar(); renderOverview(); renderPayments(); if (selectedId) renderClientDetail() }
 
@@ -1056,5 +1057,96 @@ function renderClientReturns(c) {
             </tr>`).join('')}
         </tbody>
       </table>
+    </div>`
+}
+
+// ─── CALCULATOR ───────────────────────────────────────────────────────────────
+window.calcFixed = function() {
+  const cap = parseFloat(document.getElementById('calc-capital').value)
+  const el = document.getElementById('calc-fixed-results')
+  if (!cap || cap < 700) {
+    el.innerHTML = '<div style="color:#3a3a3a;font-size:11px;margin-top:8px;">Introduce un capital de mínimo €700.</div>'
+    return
+  }
+  const plans = ['Conservador', 'Moderado', 'Agresivo']
+  const colors = ['#4caf74', '#c9a84c', '#c0392b']
+  const results = plans.map((p, i) => {
+    const cuota = calcFixedCuota(p, cap)
+    const anual = cuota * 12
+    return `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #1a1a1a;">
+        <span style="color:${colors[i]};font-weight:600;font-size:12px;">${p}</span>
+        <span style="color:#e8e0d0;font-size:18px;font-family:'Playfair Display',serif;">€${cuota}<span style="font-size:11px;color:#5a5a5a;">/mes</span></span>
+        <span style="color:#5a5a5a;font-size:11px;">€${anual}/año</span>
+      </div>`
+  })
+  el.innerHTML = results.join('')
+}
+
+window.calcFlex = function() {
+  const cap = parseFloat(document.getElementById('calc-flex-capital').value)
+  const pct = parseFloat(document.getElementById('calc-flex-pct').value)
+  const el = document.getElementById('calc-flex-result')
+
+  if (!cap || cap < 1500) {
+    el.innerHTML = '<div style="color:#3a3a3a;font-size:11px;">El plan Flexible requiere mínimo €1.500.</div>'
+    return
+  }
+  if (isNaN(pct)) { el.innerHTML = ''; return }
+
+  const eur = (pct / 100) * cap
+  document.getElementById('calc-flex-eur').value = eur.toFixed(2)
+  renderFlexResult(cap, pct, eur)
+}
+
+window.calcFlexEur = function() {
+  const cap = parseFloat(document.getElementById('calc-flex-capital').value)
+  const eur = parseFloat(document.getElementById('calc-flex-eur').value)
+  const el = document.getElementById('calc-flex-result')
+
+  if (!cap || cap < 1500) {
+    el.innerHTML = '<div style="color:#3a3a3a;font-size:11px;">El plan Flexible requiere mínimo €1.500.</div>'
+    return
+  }
+  if (isNaN(eur)) { el.innerHTML = ''; return }
+
+  const pct = (eur / cap) * 100
+  document.getElementById('calc-flex-pct').value = pct.toFixed(2)
+  renderFlexResult(cap, pct, eur)
+}
+
+function renderFlexResult(cap, pct, eur) {
+  const el = document.getElementById('calc-flex-result')
+  if (pct <= 0) {
+    el.innerHTML = `
+      <div style="background:#0d2010;border:1px solid #1a3a20;border-radius:3px;padding:14px;text-align:center;">
+        <div style="color:#4caf74;font-size:22px;font-family:'Playfair Display',serif;">€0</div>
+        <div style="color:#4caf74;font-size:11px;margin-top:4px;">Mes negativo — no se cobra nada</div>
+        <div style="color:#3a3a3a;font-size:10px;margin-top:4px;">Pérdida: ${fmtEur(Math.abs(eur).toFixed(2))}</div>
+      </div>`
+    return
+  }
+  const cuota = calcFlexibleCuota(cap, eur)
+  const tier = FLEXIBLE_RATES.find(r => cap >= r.min && cap < r.max)
+  const commission = tier ? tier.commission * 100 : 0
+  const maintenance = tier ? tier.maintenance : 0
+  el.innerHTML = `
+    <div style="background:#0a0d1a;border:1px solid #101828;border-radius:3px;padding:14px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <span style="color:#5a5a5a;font-size:11px;">Beneficio del mes</span>
+        <span style="color:#4caf74;font-size:16px;font-family:'Playfair Display',serif;">+${fmtEur(parseFloat(eur).toFixed(2))}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <span style="color:#5a5a5a;font-size:11px;">Comisión (${commission}%)</span>
+        <span style="color:#5a90e0;font-size:13px;">€${(eur * commission / 100).toFixed(2)}</span>
+      </div>
+      ${maintenance ? `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <span style="color:#5a5a5a;font-size:11px;">Mantenimiento</span>
+        <span style="color:#5a90e0;font-size:13px;">€${maintenance}</span>
+      </div>` : ''}
+      <div style="border-top:1px solid #1e2d4a;padding-top:10px;display:flex;justify-content:space-between;align-items:center;">
+        <span style="color:#e8e0d0;font-size:12px;font-weight:600;">Total a cobrar</span>
+        <span style="color:#c9a84c;font-size:24px;font-family:'Playfair Display',serif;">€${cuota}</span>
+      </div>
     </div>`
 }
