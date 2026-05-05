@@ -507,6 +507,7 @@ function showPage(name) {
   document.querySelector(`.nav-btn[data-page="${name}"]`)?.classList.add('active')
   if (name === 'clients') renderClientDetail()
   if (name === 'payments') renderPayments()
+  if (name === 'analytics') renderAnalytics()
 }
 function renderAll() { renderSidebar(); renderOverview(); renderPayments(); if (selectedId) renderClientDetail() }
 
@@ -784,3 +785,152 @@ function exportClientPDF(clientId) {
 
 window.exportOverviewPDF = exportOverviewPDF
 window.exportClientPDF = exportClientPDF
+
+// ─── ANALYTICS ────────────────────────────────────────────────────────────────
+let chartMRR = null
+let chartPlans = null
+let chartClients = null
+
+const CHART_DEFAULTS = {
+  color: '#e8e0d0',
+  grid: '#1a1a1a',
+  gold: '#c9a84c',
+  green: '#4caf74',
+  red: '#c0392b',
+  blue: '#5a90e0',
+  muted: '#3a3a3a'
+}
+
+function destroyCharts() {
+  if (chartMRR) { chartMRR.destroy(); chartMRR = null }
+  if (chartPlans) { chartPlans.destroy(); chartPlans = null }
+  if (chartClients) { chartClients.destroy(); chartClients = null }
+}
+
+function renderAnalytics() {
+  // Metrics
+  const totalHistorico = payments.filter(p => p.status === 'OK').reduce((s, p) => s + Number(p.amount), 0)
+  const avgCapital = clients.length ? Math.round(totalAUM() / clients.length) : 0
+  const topClient = clients.length ? clients.reduce((a, b) => Number(a.capital) > Number(b.capital) ? a : b) : null
+  const bestPlan = (() => {
+    const plans = ['Conservador','Moderado','Agresivo','Flexible']
+    return plans.reduce((a, b) => {
+      const ca = clients.filter(c => c.plan === a).reduce((s,c) => s+Number(c.capital),0)
+      const cb = clients.filter(c => c.plan === b).reduce((s,c) => s+Number(c.capital),0)
+      return ca > cb ? a : b
+    })
+  })()
+
+  document.getElementById('analytics-metrics').innerHTML = `
+    <div class="metric-card">
+      <div class="m-label">Total histórico cobrado</div>
+      <div class="m-value green">${fmtEur(totalHistorico)}</div>
+      <div class="m-sub">${payments.length} pagos registrados</div>
+    </div>
+    <div class="metric-card">
+      <div class="m-label">Capital medio por cliente</div>
+      <div class="m-value gold">${fmtEur(avgCapital)}</div>
+    </div>
+    <div class="metric-card">
+      <div class="m-label">Cliente mayor capital</div>
+      <div class="m-value" style="font-size:16px;margin-top:8px">${topClient ? topClient.name.split(' ')[0] : '—'}</div>
+      <div class="m-sub">${topClient ? fmtEur(topClient.capital) : ''}</div>
+    </div>
+    <div class="metric-card">
+      <div class="m-label">Plan con más capital</div>
+      <div class="m-value" style="font-size:16px;margin-top:8px;color:${getPlanColor(bestPlan)}">${bestPlan}</div>
+    </div>`
+
+  destroyCharts()
+
+  // Chart 1: MRR by month
+  const monthlyData = {}
+  payments.filter(p => p.status === 'OK').forEach(p => {
+    monthlyData[p.month] = (monthlyData[p.month] || 0) + Number(p.amount)
+  })
+  const sortedMonths = Object.keys(monthlyData).sort()
+  const mrrCtx = document.getElementById('chart-mrr')
+  if (mrrCtx) {
+    chartMRR = new Chart(mrrCtx, {
+      type: 'bar',
+      data: {
+        labels: sortedMonths.map(m => formatMonth(m)),
+        datasets: [{
+          label: 'Cobrado (€)',
+          data: sortedMonths.map(m => monthlyData[m]),
+          backgroundColor: '#c9a84c',
+          borderRadius: 3,
+          borderSkipped: false
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { color: '#5a5a5a', font: { size: 10 } }, grid: { color: '#1a1a1a' } },
+          y: { ticks: { color: '#5a5a5a', font: { size: 10 }, callback: v => '€' + v }, grid: { color: '#1a1a1a' } }
+        }
+      }
+    })
+  }
+
+  // Chart 2: Capital by plan (doughnut)
+  const planNames = ['Conservador', 'Moderado', 'Agresivo', 'Flexible']
+  const planCapitals = planNames.map(p => clients.filter(c => c.plan === p).reduce((s, c) => s + Number(c.capital), 0))
+  const planColors = ['#4caf74', '#c9a84c', '#c0392b', '#5a90e0']
+  const plansCtx = document.getElementById('chart-plans')
+  if (plansCtx) {
+    chartPlans = new Chart(plansCtx, {
+      type: 'doughnut',
+      data: {
+        labels: planNames,
+        datasets: [{
+          data: planCapitals,
+          backgroundColor: planColors,
+          borderColor: '#0f0f0f',
+          borderWidth: 3
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: {
+            position: 'right',
+            labels: { color: '#c8c0b0', font: { size: 11 }, padding: 12, boxWidth: 12 }
+          },
+          tooltip: {
+            callbacks: { label: ctx => ` ${ctx.label}: ${fmtEur(ctx.raw)}` }
+          }
+        }
+      }
+    })
+  }
+
+  // Chart 3: Clients ranking (horizontal bar)
+  const sorted = [...clients].sort((a, b) => Number(b.capital) - Number(a.capital)).slice(0, 10)
+  const clientsCtx = document.getElementById('chart-clients')
+  if (clientsCtx) {
+    chartClients = new Chart(clientsCtx, {
+      type: 'bar',
+      data: {
+        labels: sorted.map(c => c.name),
+        datasets: [{
+          label: 'Capital (€)',
+          data: sorted.map(c => Number(c.capital)),
+          backgroundColor: sorted.map(c => getPlanColor(c.plan)),
+          borderRadius: 3,
+          borderSkipped: false
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { color: '#5a5a5a', font: { size: 10 }, callback: v => '€' + v.toLocaleString() }, grid: { color: '#1a1a1a' } },
+          y: { ticks: { color: '#c8c0b0', font: { size: 10 } }, grid: { color: '#1a1a1a' } }
+        }
+      }
+    })
+  }
+}

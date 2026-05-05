@@ -263,3 +263,27 @@ textarea.form-input { resize: vertical; }
   cursor: pointer; font-size: 13px; padding: 0;
 }
 .del-pay-btn:hover { color: var(--red); }
+
+/* ANALYTICS */
+.charts-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-top: 4px;
+}
+.chart-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 16px;
+}
+.chart-card-title {
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: var(--muted2);
+  text-transform: uppercase;
+  margin-bottom: 14px;
+}
+.chart-card canvas {
+  max-height: 220px;
+}
