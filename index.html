@@ -136,17 +136,8 @@
       <div class="page" id="page-payments">
         <div class="sec-title">Gestión de pagos</div>
         <div class="metric-grid" id="payments-metrics"></div>
-        <div class="t-wrap" style="margin-top:16px;">
-          <table>
-            <thead>
-              <tr>
-                <th>Cliente</th><th>Plan</th><th>Capital</th>
-                <th>Cuota mensual</th><th>Estado</th><th>Observación</th>
-              </tr>
-            </thead>
-            <tbody id="payments-table"></tbody>
-          </table>
-        </div>
+        <div class="sec-title" style="margin-top:4px;">Historial de pagos</div>
+        <div id="payments-history"></div>
       </div>
 
     </div>
@@ -235,6 +226,44 @@
       <div class="modal-actions">
         <button class="btn-ghost" id="flex-cancel">Cancelar</button>
         <button class="btn-gold" id="flex-save">Aplicar cuota</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- MODAL: REGISTER PAYMENT -->
+  <div class="modal-overlay" id="modal-payment">
+    <div class="modal" style="max-width:400px;">
+      <button class="modal-close" id="payment-close">✕</button>
+      <div class="modal-title">Registrar pago</div>
+      <div style="font-size:11px;color:#5a5a5a;margin-bottom:16px;">Cliente: <span id="pay-client-name" style="color:#c9a84c;"></span></div>
+      <div id="pay-flex-hint" style="display:none;background:#0a0d1a;border:1px solid #101828;color:#5a90e0;padding:10px;font-size:11px;border-radius:2px;margin-bottom:12px;">
+        Plan Flexible: introduce el importe de comisión calculado según la rentabilidad del mes.
+      </div>
+      <div class="form-row-2">
+        <div>
+          <label class="form-label">Mes</label>
+          <input class="form-input" id="pay-month" type="month">
+        </div>
+        <div>
+          <label class="form-label">Importe (€)</label>
+          <input class="form-input" id="pay-amount" type="number" placeholder="0">
+        </div>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Estado</label>
+        <select class="form-select" id="pay-status">
+          <option value="OK">Pagado</option>
+          <option value="PENDIENTE">Pendiente</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Nota (opcional)</label>
+        <input class="form-input" id="pay-notes" placeholder="Ej: transferencia recibida">
+      </div>
+      <div class="modal-actions">
+        <button class="btn-ghost" id="pay-cancel">Cancelar</button>
+        <button class="btn-gold" id="pay-save">Guardar pago</button>
       </div>
     </div>
   </div>
